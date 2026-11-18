@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ระบบปฏิทินวันหยุดภายในองค์กร</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body { background: #f1f5f9; font-family: 'Sarabun', sans-serif; color: #1e293b; }
+.navbar-org { background: linear-gradient(135deg, #0f294a, #1d5ba0); color: #fff; }
+.card { border: 0; border-radius: 14px; box-shadow: 0 4px 16px rgba(15, 41, 74, 0.06); }
+.stat-num { font-size: 28px; font-weight: 700; }
+.table thead th { background: #f8fafc; color: #475569; font-size: 14px; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<nav class="navbar-org py-3 mb-4 shadow-sm">
+  <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <h5 class="mb-0 fw-bold">📅 ระบบปฏิทินวันหยุดภายในองค์กร</h5>
+      <small class="text-white-50" id="header-subtitle">Organization Holiday Calendar</small>
+    </div>
+    <div id="nav-auth-area"></div>
+  </div>
+</nav>
+
+<div class="container pb-5">
+  <div id="alert-area"></div>
+
+  <!-- กล่องเข้าสู่ระบบ -->
+  <div class="card p-4 mb-4 border-start border-4 border-primary" id="login-box">
+    <div class="row align-items-center g-3">
+      <div class="col-lg-5">
+        <h6 class="fw-bold mb-1">เข้าสู่ระบบเพื่อจัดการวันหยุด (เพิ่ม / แก้ไข / ลบ)</h6>
+        <p class="text-secondary small mb-0">
+          บัญชีทดสอบ: ชื่อผู้ใช้ <code>admin</code> / รหัสผ่าน <code>admin12345</code>
+        </p>
+      </div>
+      <div class="col-lg-7">
+        <form id="login-form" class="row g-2">
+          <div class="col-sm-4">
+            <input class="form-control" id="login-username" placeholder="ชื่อผู้ใช้" value="admin" required>
+          </div>
+          <div class="col-sm-4">
+            <input class="form-control" type="password" id="login-password" placeholder="รหัสผ่าน" required>
+          </div>
+          <div class="col-sm-4 d-grid">
+            <button type="submit" class="btn btn-primary fw-semibold">เข้าสู่ระบบ</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- สรุปจำนวนวันหยุดประจำปี -->
+  <div class="row g-3 mb-4">
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="text-secondary small" id="stat-total-label">วันหยุดทั้งหมด</div>
+        <div class="stat-num text-dark"><span id="stat-total">0</span> <span class="fs-6 fw-normal text-secondary">รายการ</span></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="text-secondary small">สถานะใช้งาน (Active)</div>
+        <div class="stat-num text-success"><span id="stat-active">0</span> <span class="fs-6 fw-normal text-secondary">วัน</span></div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card p-3">
+        <div class="text-secondary small">สถานะไม่ใช้งาน (Inactive)</div>
+        <div class="stat-num text-secondary"><span id="stat-inactive">0</span> <span class="fs-6 fw-normal text-secondary">รายการ</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ฟอร์มเพิ่ม / แก้ไขวันหยุด (แสดงเมื่อล็อกอินแล้ว) -->
+  <div class="card p-4 mb-4 border-top border-4 border-primary d-none" id="holiday-form-card">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="fw-bold mb-0" id="form-title">➕ เพิ่มวันหยุดใหม่</h5>
+      <button type="button" class="btn btn-sm btn-outline-secondary d-none" id="cancel-edit-btn">ยกเลิกการแก้ไข</button>
+    </div>
+
+    <form id="holiday-form">
+      <input type="hidden" id="edit-id" value="0">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">วันที่ <span class="text-danger">*</span></label>
+          <input class="form-control" type="date" id="holiday-date" required>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label fw-semibold">ชื่อวันหยุด <span class="text-danger">*</span></label>
+          <input class="form-control" id="holiday-name" placeholder="เช่น วันขึ้นปีใหม่" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label fw-semibold">ประเภทวันหยุด <span class="text-danger">*</span></label>
+          <select class="form-select" id="holiday-type" required>
+            <option value="วันหยุดราชการ">วันหยุดราชการ</option>
+            <option value="วันหยุดประเพณี">วันหยุดประเพณี</option>
+            <option value="วันหยุดองค์กร">วันหยุดองค์กร</option>
+            <option value="วันหยุดพิเศษ">วันหยุดพิเศษ</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label fw-semibold">สถานะใช้งาน <span class="text-danger">*</span></label>
+          <select class="form-select" id="holiday-status">
+            <option value="1">ใช้งาน</option>
+            <option value="0">ไม่ใช้งาน</option>
+          </select>
+        </div>
+        <div class="col-md-9">
+          <label class="form-label fw-semibold">หมายเหตุ</label>
+          <input class="form-control" id="holiday-note" placeholder="รายละเอียดเพิ่มเติม (ถ้ามี)">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100 fw-semibold" id="submit-btn">➕ บันทึกวันหยุด</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- ส่วนค้นหาตามปี และตารางแสดงผล -->
+  <div class="card p-4">
+    <form id="filter-form" class="row g-2 align-items-end mb-4">
+      <div class="col-sm-3 col-md-2">
+        <label class="form-label small fw-semibold mb-1">ค้นหาตามปี (ค.ศ.)</label>
+        <input class="form-control" type="number" id="filter-year" min="2000" max="2100" required>
+      </div>
+      <div class="col-sm-4 col-md-3">
+        <label class="form-label small fw-semibold mb-1">ประเภทวันหยุด</label>
+        <select class="form-select" id="filter-type">
+          <option value="">-- ทั้งหมด --</option>
+          <option value="วันหยุดราชการ">วันหยุดราชการ</option>
+          <option value="วันหยุดประเพณี">วันหยุดประเพณี</option>
+          <option value="วันหยุดองค์กร">วันหยุดองค์กร</option>
+          <option value="วันหยุดพิเศษ">วันหยุดพิเศษ</option>
+        </select>
+      </div>
+      <div class="col-sm-5 col-md-4">
+        <label class="form-label small fw-semibold mb-1">คำค้นหา (ชื่อวันหยุด / หมายเหตุ)</label>
+        <input class="form-control" type="text" id="filter-query" placeholder="พิมพ์ชื่อวันหยุด...">
+      </div>
+      <div class="col-md-3 d-flex gap-2">
+        <button type="submit" class="btn btn-primary flex-grow-1">🔍 ค้นหา</button>
+        <button type="button" class="btn btn-outline-secondary d-none" id="reset-filter-btn">รีเซ็ต</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>วันที่</th>
+            <th>ชื่อวันหยุด</th>
+            <th>ประเภทวันหยุด</th>
+            <th>หมายเหตุ</th>
+            <th>สถานะใช้งาน</th>
+            <th class="text-end d-none" id="manage-col-header">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody id="holiday-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const STORAGE_KEY = 'org_holidays_data_v1';
+const AUTH_KEY = 'org_holidays_auth_v1';
+const currentYearDefault = new Date().getFullYear();
+
+// ข้อมูลวันหยุดเริ่มต้น (แสดงผลทันทีเมื่อเปิดเว็บครั้งแรก)
+const defaultHolidays = [
+  { id: 1, holiday_date: `${currentYearDefault}-01-01`, holiday_name: 'วันขึ้นปีใหม่', holiday_type: 'วันหยุดราชการ', note: 'หยุดประจำปี', status: 1 },
+  { id: 2, holiday_date: `${currentYearDefault}-04-13`, holiday_name: 'วันสงกรานต์', holiday_type: 'วันหยุดประเพณี', note: 'เทศกาลสงกรานต์', status: 1 },
+  { id: 3, holiday_date: `${currentYearDefault}-04-14`, holiday_name: 'วันสงกรานต์', holiday_type: 'วันหยุดประเพณี', note: 'เทศกาลสงกรานต์', status: 1 },
+  { id: 4, holiday_date: `${currentYearDefault}-04-15`, holiday_name: 'วันสงกรานต์', holiday_type: 'วันหยุดประเพณี', note: 'เทศกาลสงกรานต์', status: 1 },
+  { id: 5, holiday_date: `${currentYearDefault}-05-01`, holiday_name: 'วันแรงงานแห่งชาติ', holiday_type: 'วันหยุดองค์กร', note: '', status: 1 },
+  { id: 6, holiday_date: `${currentYearDefault}-12-31`, holiday_name: 'วันสิ้นปี', holiday_type: 'วันหยุดราชการ', note: '', status: 1 }
+];
+
+let state = {
+  year: currentYearDefault,
+  filterType: '',
+  searchQuery: '',
+  isLoggedIn: sessionStorage.getItem(AUTH_KEY) === 'true'
+};
+
+function getHolidays() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultHolidays));
+    return [...defaultHolidays];
+  }
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return [...defaultHolidays];
+  }
+}
+
+function saveHolidays(list) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+function formatShortDate(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  if (!y || !m || !d) return dateStr;
+  return `${d}/${m}/${y}`;
+}
+
+function formatThaiDate(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return dateStr;
+  const dt = new Date(y, m - 1, d);
+  const days = ['อาทิตย์', 'จันทร์', 'อังคาร', 'พุธ', 'พฤหัสบดี', 'ศุกร์', 'เสาร์'];
+  const months = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+  return `วัน${days[dt.getDay()]}ที่ ${d} ${months[m]} ${y + 543}`;
+}
+
+function showAlert(message, type = 'success') {
+  const icon = type === 'success' ? '✅' : '⚠️';
+  document.getElementById('alert-area').innerHTML = `
+    <div class="alert alert-${type} alert-dismissible fade show">
+      ${icon} ${escapeHtml(message)}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  `;
+}
+
+function hasActiveHolidayConflict(list, date, excludeId = 0) {
+  return list.some(item => item.holiday_date === date && Number(item.status) === 1 && Number(item.id) !== Number(excludeId));
+}
+
+function render() {
+  const allHolidays = getHolidays();
+  const yearStr = String(state.year);
+
+  // อัปเดต Header & Stats
+  document.getElementById('header-subtitle').textContent = `Organization Holiday Calendar · ปี ค.ศ. ${state.year} (พ.ศ. ${state.year + 543})`;
+  document.getElementById('stat-total-label').textContent = `วันหยุดทั้งหมดในปี ${state.year} (พ.ศ. ${state.year + 543})`;
+  document.getElementById('filter-year').value = state.year;
+
+  const yearHolidays = allHolidays.filter(h => h.holiday_date.startsWith(yearStr + '-'));
+  const activeCount = yearHolidays.filter(h => Number(h.status) === 1).length;
+  document.getElementById('stat-total').textContent = yearHolidays.length;
+  document.getElementById('stat-active').textContent = activeCount;
+  document.getElementById('stat-inactive').textContent = yearHolidays.length - activeCount;
+
+  // อัปเดตสถานะการล็อกอิน
+  const navAuth = document.getElementById('nav-auth-area');
+  const loginBox = document.getElementById('login-box');
+  const formCard = document.getElementById('holiday-form-card');
+  const manageHeader = document.getElementById('manage-col-header');
+
+  if (state.isLoggedIn) {
+    navAuth.innerHTML = `
+      <span class="me-3 small">ผู้ใช้งาน: <strong>ผู้ดูแลระบบ (HR)</strong></span>
+      <button type="button" class="btn btn-sm btn-outline-light" onclick="handleLogout()">ออกจากระบบ</button>
+    `;
+    loginBox.classList.add('d-none');
+    formCard.classList.remove('d-none');
+    manageHeader.classList.remove('d-none');
+  } else {
+    navAuth.innerHTML = `<a href="#login-box" class="btn btn-sm btn-warning fw-semibold">🔒 เข้าสู่ระบบผู้ดูแล (HR)</a>`;
+    loginBox.classList.remove('d-none');
+    formCard.classList.add('d-none');
+    manageHeader.classList.add('d-none');
+  }
+
+  // ปุ่มรีเซ็ตตัวกรอง
+  const resetBtn = document.getElementById('reset-filter-btn');
+  if (state.filterType !== '' || state.searchQuery !== '' || state.year !== currentYearDefault) {
+    resetBtn.classList.remove('d-none');
+  } else {
+    resetBtn.classList.add('d-none');
+  }
+
+  // กรองข้อมูลแสดงในตาราง
+  let filtered = yearHolidays.filter(item => {
+    if (!state.isLoggedIn && Number(item.status) !== 1) return false;
+    if (state.filterType && item.holiday_type !== state.filterType) return false;
+    if (state.searchQuery) {
+      const q = state.searchQuery.toLowerCase();
+      const matchName = (item.holiday_name || '').toLowerCase().includes(q);
+      const matchNote = (item.note || '').toLowerCase().includes(q);
+      if (!matchName && !matchNote) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a, b) => a.holiday_date.localeCompare(b.holiday_date) || a.id - b.id);
+
+  const tbody = document.getElementById('holiday-tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="${state.isLoggedIn ? 6 : 5}" class="text-center text-secondary py-4">
+          ไม่พบข้อมูลวันหยุดในปี ค.ศ. ${state.year} (พ.ศ. ${state.year + 543})
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(item => {
+    const isActive = Number(item.status) === 1;
+    const statusCell = state.isLoggedIn
+      ? `<button type="button" class="btn btn-sm ${isActive ? 'btn-success' : 'btn-secondary'}" onclick="toggleStatus(${item.id})" title="คลิกเพื่อเปลี่ยนสถานะ">${isActive ? 'ใช้งาน' : 'ไม่ใช้งาน'}</button>`
+      : `<span class="badge bg-success">ใช้งาน</span>`;
+
+    const manageCell = state.isLoggedIn
+      ? `<td class="text-end text-nowrap">
+           <button type="button" class="btn btn-sm btn-outline-primary me-1" onclick="startEdit(${item.id})">แก้ไข</button>
+           <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteHoliday(${item.id})">ลบ</button>
+         </td>`
+      : '';
+
+    return `
+      <tr>
+        <td class="text-nowrap">
+          <div class="fw-semibold">${escapeHtml(formatShortDate(item.holiday_date))}</div>
+          <small class="text-secondary">${escapeHtml(formatThaiDate(item.holiday_date))}</small>
+        </td>
+        <td class="fw-semibold">${escapeHtml(item.holiday_name)}</td>
+        <td><span class="badge bg-light text-dark border">${escapeHtml(item.holiday_type)}</span></td>
+        <td class="text-secondary small">${escapeHtml(item.note || '-')}</td>
+        <td>${statusCell}</td>
+        ${manageCell}
+      </tr>
+    `;
+  }).join('');
+}
+
+// Event Handlers
+document.getElementById('login-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const u = document.getElementById('login-username').value.trim();
+  const p = document.getElementById('login-password').value;
+  if (u === 'admin' && p === 'admin12345') {
+    state.isLoggedIn = true;
+    sessionStorage.setItem(AUTH_KEY, 'true');
+    document.getElementById('login-password').value = '';
+    showAlert('เข้าสู่ระบบสำเร็จ', 'success');
+    render();
+  } else {
+    showAlert('ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง', 'danger');
+  }
+});
+
+function handleLogout() {
+  state.isLoggedIn = false;
+  sessionStorage.removeItem(AUTH_KEY);
+  resetForm();
+  render();
+}
+
+document.getElementById('holiday-form').addEventListener('submit', e => {
+  e.preventDefault();
+  if (!state.isLoggedIn) return;
+
+  const id = Number(document.getElementById('edit-id').value);
+  const date = document.getElementById('holiday-date').value;
+  const name = document.getElementById('holiday-name').value.trim();
+  const type = document.getElementById('holiday-type').value;
+  const status = Number(document.getElementById('holiday-status').value);
+  const note = document.getElementById('holiday-note').value.trim();
+
+  if (!date || !name || !type) {
+    showAlert('กรุณากรอกข้อมูล วันที่ ชื่อวันหยุด และประเภทวันหยุด ให้ครบถ้วน', 'danger');
+    return;
+  }
+
+  const list = getHolidays();
+  if (status === 1 && hasActiveHolidayConflict(list, date, id)) {
+    showAlert(`ไม่สามารถบันทึกได้: วันที่ ${formatShortDate(date)} มีวันหยุดที่เปิดใช้งานอยู่แล้ว (1 วันมีวันหยุดที่ใช้งานได้ไม่เกิน 1 รายการ)`, 'danger');
+    return;
+  }
+
+  const targetYear = Number(date.split('-')[0]);
+  if (id > 0) {
+    const idx = list.findIndex(x => Number(x.id) === id);
+    if (idx !== -1) {
+      list[idx] = { id, holiday_date: date, holiday_name: name, holiday_type: type, note, status };
+      showAlert('แก้ไขข้อมูลวันหยุดเรียบร้อยแล้ว', 'success');
+    }
+  } else {
+    const nextId = list.length > 0 ? Math.max(...list.map(x => Number(x.id))) + 1 : 1;
+    list.push({ id: nextId, holiday_date: date, holiday_name: name, holiday_type: type, note, status });
+    showAlert('เพิ่มวันหยุดเรียบร้อยแล้ว', 'success');
+  }
+
+  saveHolidays(list);
+  state.year = targetYear;
+  resetForm();
+  render();
+});
+
+function startEdit(id) {
+  const item = getHolidays().find(x => Number(x.id) === Number(id));
+  if (!item) return;
+  document.getElementById('edit-id').value = item.id;
+  document.getElementById('holiday-date').value = item.holiday_date;
+  document.getElementById('holiday-name').value = item.holiday_name;
+  document.getElementById('holiday-type').value = item.holiday_type;
+  document.getElementById('holiday-status').value = item.status;
+  document.getElementById('holiday-note').value = item.note || '';
+  document.getElementById('form-title').textContent = `✏️ แก้ไขข้อมูลวันหยุด (ID #${item.id})`;
+  document.getElementById('submit-btn').textContent = '💾 บันทึกการแก้ไข';
+  document.getElementById('cancel-edit-btn').classList.remove('d-none');
+  document.getElementById('holiday-form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+function resetForm() {
+  document.getElementById('holiday-form').reset();
+  document.getElementById('edit-id').value = '0';
+  document.getElementById('form-title').textContent = '➕ เพิ่มวันหยุดใหม่';
+  document.getElementById('submit-btn').textContent = '➕ บันทึกวันหยุด';
+  document.getElementById('cancel-edit-btn').classList.add('d-none');
+}
+
+document.getElementById('cancel-edit-btn').addEventListener('click', resetForm);
+
+function toggleStatus(id) {
+  if (!state.isLoggedIn) return;
+  const list = getHolidays();
+  const idx = list.findIndex(x => Number(x.id) === Number(id));
+  if (idx === -1) return;
+
+  const newStatus = Number(list[idx].status) === 1 ? 0 : 1;
+  if (newStatus === 1 && hasActiveHolidayConflict(list, list[idx].holiday_date, id)) {
+    showAlert(`ไม่สามารถเปิดใช้งานได้: วันที่ ${formatShortDate(list[idx].holiday_date)} มีรายการวันหยุดอื่นที่เปิดใช้งานอยู่แล้ว`, 'danger');
+    return;
+  }
+
+  list[idx].status = newStatus;
+  saveHolidays(list);
+  showAlert('อัปเดตสถานะเรียบร้อยแล้ว', 'success');
+  render();
+}
+
+function deleteHoliday(id) {
+  if (!state.isLoggedIn) return;
+  if (!confirm('ยืนยันการลบรายการนี้หรือไม่?')) return;
+  const list = getHolidays().filter(x => Number(x.id) !== Number(id));
+  saveHolidays(list);
+  if (Number(document.getElementById('edit-id').value) === Number(id)) {
+    resetForm();
+  }
+  showAlert('ลบรายการวันหยุดเรียบร้อยแล้ว', 'success');
+  render();
+}
+
+document.getElementById('filter-form').addEventListener('submit', e => {
+  e.preventDefault();
+  const y = Number(document.getElementById('filter-year').value);
+  state.year = (y >= 2000 && y <= 2100) ? y : currentYearDefault;
+  state.filterType = document.getElementById('filter-type').value;
+  state.searchQuery = document.getElementById('filter-query').value.trim();
+  render();
+});
+
+document.getElementById('reset-filter-btn').addEventListener('click', () => {
+  state.year = currentYearDefault;
+  state.filterType = '';
+  state.searchQuery = '';
+  document.getElementById('filter-type').value = '';
+  document.getElementById('filter-query').value = '';
+  render();
+});
+
+// เริ่มต้นแสดงผล
+render();
+</script>
+</body>
+</html>
